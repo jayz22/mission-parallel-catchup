@@ -1,0 +1,8 @@
+# Use the official stellar-core image as the base image
+FROM stellar/stellar-core:20.4.1-1851.60263deeb.focal
+
+# Install redis-cli
+RUN apt-get update && apt-get install -y redis-tools dnsutils net-tools iputils-ping
+
+# Set the default command to be overridden by the Kubernetes job
+CMD ["sh", "-c", "echo 'This is a placeholder command'"]

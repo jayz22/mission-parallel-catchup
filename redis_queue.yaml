@@ -1,0 +1,106 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: redis-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "TCP"
+spec:
+  rules:
+  - host: jayz22.redis.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: redis
+            port:
+              number: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  type: ClusterIP  # Default type, accessible only within the cluster
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:latest
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - mountPath: /data
+          name: redis-storage
+        command: ["redis-server"]
+        args: ["--appendonly", "yes"] # Enable persistence with AOF
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: preload-redis
+spec:
+  template:
+    spec:
+      containers:
+      - name: preload
+        image: redis:latest
+        command: ["/bin/sh", "-c"]
+        args: 
+        - |
+          until redis-cli -h redis -p 6379 ping; do echo waiting for redis; sleep 2; done;
+          redis-cli -h redis -p 6379 <<EOF
+          LPUSH ranges "10000/1000"
+          LPUSH ranges "50000/1000"
+          LPUSH ranges "100000/1000"
+          EOF
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 1Gi
