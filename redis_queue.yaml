@@ -1,28 +1,30 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: redis-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: "TCP"
+  name: preload-redis
 spec:
-  rules:
-  - host: jayz22.redis.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: redis
-            port:
-              number: 6379
+  template:
+    spec:
+      containers:
+      - name: preload
+        image: redis:latest
+        command: ["/bin/sh", "-c"]
+        args: 
+        - |
+          until redis-cli -h redis -p 6379 ping; do echo waiting for redis; sleep 2; done;
+          apply=1000;
+          for i in $(seq 0 100); do
+            target=$(( (i + 1) * 10000 ));
+            redis-cli -h redis -p 6379 LPUSH ranges "${target}/${apply}";
+          done
+      restartPolicy: OnFailure
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: redis
 spec:
-  type: ClusterIP  # Default type, accessible only within the cluster
+  type: ClusterIP
   ports:
     - port: 6379
       targetPort: 6379
@@ -52,32 +54,13 @@ spec:
         - mountPath: /data
           name: redis-storage
         command: ["redis-server"]
-        args: ["--appendonly", "yes"] # Enable persistence with AOF
+        # We have disabled persistence below. There was some error with cross-device link. Will figure out later.
+        # Storage mounting works fine
+        # args: ["--appendonly", "yes"] # Enable persistence with AOF
       volumes:
       - name: redis-storage
         persistentVolumeClaim:
           claimName: redis-pvc
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: preload-redis
-spec:
-  template:
-    spec:
-      containers:
-      - name: preload
-        image: redis:latest
-        command: ["/bin/sh", "-c"]
-        args: 
-        - |
-          until redis-cli -h redis -p 6379 ping; do echo waiting for redis; sleep 2; done;
-          redis-cli -h redis -p 6379 <<EOF
-          LPUSH ranges "10000/1000"
-          LPUSH ranges "50000/1000"
-          LPUSH ranges "100000/1000"
-          EOF
-      restartPolicy: OnFailure
 ---
 apiVersion: v1
 kind: PersistentVolume

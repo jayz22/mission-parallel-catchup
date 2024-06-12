@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-monitor
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: job-monitor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-monitor
+  template:
+    metadata:
+      labels:
+        app: job-monitor
+    spec:
+      containers:
+      - name: job-monitor
+        image: jayz22/job-monitor:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: JOB_QUEUE
+          value: "ranges"
+        - name: FAILED_QUEUE
+          value: "failed"
+        - name: WORKER_PREFIX
+          value: "stellar-core"
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: WORKER_COUNT
+          value: "3"

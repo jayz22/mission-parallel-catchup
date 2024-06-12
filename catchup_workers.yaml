@@ -1,40 +1,8 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: stellar-core-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  rules:
-  - host: jayz22.stellar-core.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: regular-stellar-core
-            port:
-              number: 11626
----
 apiVersion: v1
 kind: Service
 metadata:
-  name: regular-stellar-core
+  name: stellar-core
 spec:
-  type: ClusterIP
-  selector:
-    app: stellar-core
-  ports:
-    - port: 11626
-      targetPort: 11626
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: headless-stellar-core
-spec:
-  # type: NodePort
   clusterIP: None
   selector:
     app: stellar-core
@@ -74,8 +42,8 @@ spec:
 
           while true; do
             # Fetch the next job key from the Redis queue
-            # JOB_KEY=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT RPOP $JOB_QUEUE)
-            JOB_KEY='current/max'
+            JOB_KEY=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT RPOP $JOB_QUEUE)
+            # JOB_KEY='current/max'
 
             if [ -n "$JOB_KEY" ]; then
               echo "Processing job: $JOB_KEY"
@@ -127,7 +95,7 @@ data:
   stellar-core.cfg: |
     HTTP_PORT=11626
     PUBLIC_HTTP_PORT=true
-    NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
+    NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
     DATABASE="sqlite3:///data/stellar.db"
     BUCKET_DIR_PATH="/data/buckets"
     LOG_FILE_PATH="/data/stellar-core-{datetime:%Y-%m-%d_%H-%M-%S}.log"    
@@ -135,26 +103,26 @@ data:
     DEPRECATED_SQL_LEDGER_STATE=false
 
     [[HOME_DOMAINS]]
-    HOME_DOMAIN="testnet.stellar.org"
+    HOME_DOMAIN="www.stellar.org"
     QUALITY="HIGH"
 
     [[VALIDATORS]]
-    NAME="sdftest1"
-    HOME_DOMAIN="testnet.stellar.org"
-    PUBLIC_KEY="GDKXE2OZMJIPOSLNA6N6F2BVCI3O777I2OOC4BV7VOYUEHYX7RTRYA7Y"
-    ADDRESS="core-testnet1.stellar.org"
-    HISTORY="curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_001/{0} -o {1}"
+    NAME = "SDF 1"
+    PUBLIC_KEY = "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH"
+    ADDRESS = "core-live-a.stellar.org:11625"
+    HISTORY = "curl -sf http://history.stellar.org/prd/core-live/core_live_001/{0} -o {1}"
+    HOME_DOMAIN = "www.stellar.org"
 
     [[VALIDATORS]]
-    NAME="sdftest2"
-    HOME_DOMAIN="testnet.stellar.org"
-    PUBLIC_KEY="GCUCJTIYXSOXKBSNFGNFWW5MUQ54HKRPGJUTQFJ5RQXZXNOLNXYDHRAP"
-    ADDRESS="core-testnet2.stellar.org"
-    HISTORY="curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_002/{0} -o {1}"
-    
+    NAME = "SDF 2"
+    PUBLIC_KEY = "GCM6QMP3DLRPTAZW2UZPCPX2LF3SXWXKPMP3GKFZBDSF3QZGV2G5QSTK"
+    ADDRESS = "core-live-b.stellar.org:11625"
+    HISTORY = "curl -sf http://history.stellar.org/prd/core-live/core_live_002/{0} -o {1}"
+    HOME_DOMAIN = "www.stellar.org"
+
     [[VALIDATORS]]
-    NAME="sdftest3"
-    HOME_DOMAIN="testnet.stellar.org"
-    PUBLIC_KEY="GC2V2EFSXN6SQTWVYA5EPJPBWWIMSD2XQNKUOHGEKB535AQE2I6IXV2Z"
-    ADDRESS="core-testnet3.stellar.org"
-    HISTORY="curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_003/{0} -o {1}"
+    NAME = "SDF 3"
+    PUBLIC_KEY = "GABMKJM6I25XI4K7U6XWMULOUQIQ27BCTMLS6BYYSOWKTBUXVRJSXHYQ"
+    ADDRESS = "core-live-c.stellar.org:11625"
+    HISTORY = "curl -sf http://history.stellar.org/prd/core-live/core_live_003/{0} -o {1}"
+    HOME_DOMAIN = "www.stellar.org"
