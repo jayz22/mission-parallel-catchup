@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stellar-core
+  labels:
+    app: stellar-core
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: stellar-core
+  template:
+    metadata:
+      labels:
+        app: stellar-core
+    spec:
+      containers:
+      - name: stellar-core
+        image: stellar/stellar-core:20.4.1-1851.60263deeb.focal 
+        #command: ["/bin/sh", "-c"]
+        #args: ["/usr/bin/stellar-core --conf /etc/stellar/stellar-core_testnet.cfg new-db && /usr/bin/stellar-core --conf /etc/stellar/stellar-core_testnet.cfg catchup current/100"]
+        command: ["tail"]
+        args: ["-f", "/dev/null"]    
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: dump
+          mountPath: /dump
+        - name: core-data
+          mountPath: /core-data
+      volumes:
+      - name: dump
+        emptyDir:
+          sizeLimit: "500Mi"
+      - name: core-data
+        persistentVolumeClaim:
+          claimName: stellar-core-pvc

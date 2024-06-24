@@ -1,9 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: job-monitor-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: private
+  rules:
+  - host: ssc-job-monitor.services.stellar-ops.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: job-monitor
+            port:
+              number: 8080
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: job-monitor
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: 8080
       targetPort: 8080

@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stellar-core-job
+spec:
+  template:
+    metadata:
+      name: stellar-core
+    spec:
+      containers:
+      - name: stellar-core
+        image: stellar/stellar-core:20.4.1-1851.60263deeb.focal
+        command: ["/bin/sh", "-c"]
+        args: ["/usr/bin/stellar-core --conf /etc/stellar/stellar-core_testnet.cfg new-db && /usr/bin/stellar-core --conf /etc/stellar/stellar-core_testnet.cfg catchup current/100"]
+          #command: ["tail"]
+          #args: ["-f", "/dev/null"]    
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: stellar-core-config
+          mountPath: /temp
+      volumes:
+      - name: stellar-core-config
+        persistentVolumeClaim:
+          claimName: stellar-core-pvc
+      restartPolicy: Never
+  backoffLimit: 4          
+

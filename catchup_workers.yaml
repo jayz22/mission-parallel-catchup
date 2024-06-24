@@ -30,6 +30,16 @@ spec:
       containers:
       - name: stellar-core
         image: jayz22/core-worker
+        # resource specs copied from supercluster 
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "1200Mi"
+            ephemeral-storage: "35Gi"
+          limits:
+            cpu: "2000m"
+            memory: "6000Mi"
+            ephemeral-storage: "40Gi"
         command: ["sh", "-c"]
         args:
         - |
@@ -75,14 +85,14 @@ spec:
         ports:
         - containerPort: 11626
         volumeMounts:
-        - name: data
-          mountPath: /data
+        # - name: data
+        #   mountPath: /data
         - name: config
           mountPath: /config
       volumes:
-      - name: data
-        emptyDir:
-          sizeLimit: "1Gi"
+      # - name: data
+      #   emptyDir:
+      #     sizeLimit: "1Gi"
       - name: config
         configMap:
           name: stellar-core-config

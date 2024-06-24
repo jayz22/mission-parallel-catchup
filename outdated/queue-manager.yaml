@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: queue-manager
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: queue-manager
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: queue-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: queue-manager
+  template:
+    metadata:
+      labels:
+        app: queue-manager
+    spec:
+      containers:
+      - name: queue-manager
+        image: your-dockerhub-username/queue-manager:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: RABBITMQ_HOST
+          value: "rabbitmq"
+        - name: RABBITMQ_PORT
+          value: "5672"
+

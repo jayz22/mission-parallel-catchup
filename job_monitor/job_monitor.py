@@ -2,7 +2,10 @@ import os
 import redis
 import requests
 import json
+import sys
 import logging
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Configuration
@@ -18,7 +21,7 @@ WORKER_COUNT = int(os.getenv('WORKER_COUNT', 3))
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler(sys.stdout)])
 logger = logging.getLogger()
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -43,7 +46,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         for i in range(WORKER_COUNT):
             worker_name = f"{WORKER_PREFIX}-{i}.{WORKER_PREFIX}.{NAMESPACE}.svc.cluster.local"
             try:
-                response = requests.get(f"http://{worker_name}:11626")
+                response = requests.get(f"http://{worker_name}:11626/info")
                 logger.info("Worker %s is running, response: %d", worker_name, response.status_code)
                 worker_statuses.append({'worker': worker_name, 'status': 'running', 'response': response.status_code})
             except requests.exceptions.RequestException:
@@ -52,6 +55,16 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         return {'jobs_remain': jobs_remain, 'jobs_failed': jobs_failed, 'workers': worker_statuses}
 
+def log_status():
+    while True:
+        try:
+            handler = RequestHandler
+            status = handler.get_status(handler)
+            logger.info("Status: %s", json.dumps(status))
+        except Exception as e:
+            logger.error("Error while getting status: %s", str(e))
+        time.sleep(5)
+
 def run(server_class=HTTPServer, handler_class=RequestHandler):
     server_address = ('', 8080)
     httpd = server_class(server_address, handler_class)
@@ -59,4 +72,10 @@ def run(server_class=HTTPServer, handler_class=RequestHandler):
     httpd.serve_forever()
 
 if __name__ == '__main__':
+    # Start the periodic logging in a separate thread
+    # for testing only, will disable this in production
+    log_thread = threading.Thread(target=log_status)
+    log_thread.daemon = True
+    log_thread.start()    
+
     run()
