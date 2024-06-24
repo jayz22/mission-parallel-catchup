@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: preload-redis
+spec:
+  template:
+    spec:
+      containers:
+      - name: preload
+        image: redis:latest
+        command: ["/bin/sh", "-c"]
+        args: 
+        - {{ .Values.job.args | nindent 10 }}
+      restartPolicy: OnFailure

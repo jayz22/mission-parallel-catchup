@@ -1,2 +1,11 @@
 worker:
   replicas: 3  # Default number of replicas for catchup-worker
+
+job:
+  args: |
+    until redis-cli -h redis -p 6379 ping; do echo waiting for redis; sleep 2; done;
+    apply=1000;
+    for i in $(seq 0 100); do
+      target=$(( (i + 1) * 10000 ));
+      redis-cli -h redis -p 6379 LPUSH ranges "${target}/${apply}";
+    done
