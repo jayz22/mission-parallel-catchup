@@ -1,0 +1,2 @@
+worker:
+  replicas: 3  # Default number of replicas for catchup-worker
