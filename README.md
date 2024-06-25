@@ -10,9 +10,13 @@ The mission is logically divided into two parts: 1. parallel-catchup, which cons
 
 ## How to Run
 `$ cd ./mission`
+
 `$ python3 -m venv venv`
+
 `$ source venv/bin/activate`
+
 `$ pip install -f requirements.txt`
+
 `$ python parallel_catchup.py`
 
-Then use kubectl to monitor the status and logs of the pods and services created. 
+Then use kubectl to monitor the status and logs of the pods. 
