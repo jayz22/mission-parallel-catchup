@@ -1,5 +1,5 @@
 # Use the official stellar-core image as the base image
-FROM stellar/stellar-core:20.4.1-1851.60263deeb.focal
+FROM stellar/stellar-core:21.1.1-1923.b3aeb14cc.focal
 
 # Install redis-cli
 RUN apt-get update && apt-get install -y redis-tools dnsutils net-tools iputils-ping

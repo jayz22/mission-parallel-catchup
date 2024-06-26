@@ -66,3 +66,5 @@ spec:
               fieldPath: metadata.namespace
         - name: WORKER_COUNT
           value: "{{ .Values.worker.replicas }}"
+        - name: LOGGING_INTERVAL_SECONDS
+          value: "{{ .Values.monitor.logging_interval_seconds}}"

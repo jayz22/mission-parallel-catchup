@@ -1,10 +1,10 @@
 # Use an official Python runtime as a parent image
 FROM --platform=linux/amd64 python:3.12-slim as build
 
+VOLUME /data
+
 # Set the working directory
 WORKDIR /app
-
-# Copy the current directory contents into the container at /app
 COPY . /app
 
 # Install tools

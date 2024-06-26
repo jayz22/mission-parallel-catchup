@@ -7,6 +7,7 @@ import logging
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from datetime import datetime, UTC
 
 # Configuration
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
@@ -16,12 +17,18 @@ FAILED_QUEUE = os.getenv('FAILED_QUEUE', 'failed')
 WORKER_PREFIX = os.getenv('WORKER_PREFIX', 'stellar-core')
 NAMESPACE = os.getenv('NAMESPACE', 'default')
 WORKER_COUNT = int(os.getenv('WORKER_COUNT', 3))
+LOGGING_INTERVAL_SECONDS = int(os.getenv('LOGGING_INTERVAL_SECONDS', 10))
 
 # Initialize Redis client
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler(sys.stdout)])
+log_file_name = f"job_monitor_{datetime.now(UTC).strftime('%Y-%m-%d_%H-%M-%S')}.log"
+log_file_path = os.path.join('/data', log_file_name)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
+    logging.StreamHandler(sys.stdout),
+    logging.FileHandler(log_file_path),
+])
 logger = logging.getLogger()
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -47,11 +54,11 @@ class RequestHandler(BaseHTTPRequestHandler):
             worker_name = f"{WORKER_PREFIX}-{i}.{WORKER_PREFIX}.{NAMESPACE}.svc.cluster.local"
             try:
                 response = requests.get(f"http://{worker_name}:11626/info")
-                logger.info("Worker %s is running, response: %d", worker_name, response.status_code)
-                worker_statuses.append({'worker': worker_name, 'status': 'running', 'response': response.status_code})
+                logger.debug("Worker %s is running, response: %d", worker_name, response.status_code)
+                worker_statuses.append({'worker_id': i, 'status': 'running', 'response': response.status_code})
             except requests.exceptions.RequestException:
-                logger.error("Worker %s is down", worker_name)
-                worker_statuses.append({'worker': worker_name, 'status': 'down'})
+                logger.debug("Worker %s is down", worker_name)
+                worker_statuses.append({'worker_id': i, 'status': 'down'})
 
         return {'jobs_remain': jobs_remain, 'jobs_failed': jobs_failed, 'workers': worker_statuses}
 
@@ -63,7 +70,7 @@ def log_status():
             logger.info("Status: %s", json.dumps(status))
         except Exception as e:
             logger.error("Error while getting status: %s", str(e))
-        time.sleep(5)
+        time.sleep(LOGGING_INTERVAL_SECONDS)
 
 def run(server_class=HTTPServer, handler_class=RequestHandler):
     server_address = ('', 8080)
