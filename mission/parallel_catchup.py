@@ -54,6 +54,7 @@ def main():
     install_project()
 
     while True:
+        time.sleep(10)
         status = get_job_monitor_status()
         if status:
             queue_size = status.get('jobs_remain', 1)  # Default to 1 to keep running if not available
@@ -64,7 +65,6 @@ def main():
                 run_command(["helm", "uninstall", HELM_RELEASE_NAME])
                 break
 
-        time.sleep(10)
 
 if __name__ == '__main__':
     main()

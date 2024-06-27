@@ -31,45 +31,57 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 ])
 logger = logging.getLogger()
 
+# In-memory status data structure and threading lock
+status = {
+    'jobs_remain': 0,
+    'jobs_failed': 0,
+    'workers': []
+}
+status_lock = threading.Lock()
+
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/status':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            status = self.get_status()
-            self.wfile.write(json.dumps(status).encode())
+            with status_lock:
+                self.wfile.write(json.dumps(status).encode())                
         else:
             self.send_response(404)
             self.end_headers()
 
-    def get_status(self):
-        # Check the queue size
-        jobs_remain = redis_client.llen(JOB_QUEUE)
-        jobs_failed = redis_client.llen(FAILED_QUEUE)
-
-        # Ping each worker
-        worker_statuses = []
-        for i in range(WORKER_COUNT):
-            worker_name = f"{WORKER_PREFIX}-{i}.{WORKER_PREFIX}.{NAMESPACE}.svc.cluster.local"
-            try:
-                response = requests.get(f"http://{worker_name}:11626/info")
-                logger.debug("Worker %s is running, response: %d", worker_name, response.status_code)
-                worker_statuses.append({'worker_id': i, 'status': 'running', 'response': response.status_code})
-            except requests.exceptions.RequestException:
-                logger.debug("Worker %s is down", worker_name)
-                worker_statuses.append({'worker_id': i, 'status': 'down'})
-
-        return {'jobs_remain': jobs_remain, 'jobs_failed': jobs_failed, 'workers': worker_statuses}
-
-def log_status():
+def update_status():
+    global status
     while True:
         try:
-            handler = RequestHandler
-            status = handler.get_status(handler)
+            # Check the queue status
+            jobs_remain = redis_client.llen(JOB_QUEUE)
+            jobs_failed = redis_client.llen(FAILED_QUEUE)
+
+            # Ping each worker status
+            worker_statuses = []
+            for i in range(WORKER_COUNT):
+                worker_name = f"{WORKER_PREFIX}-{i}.{WORKER_PREFIX}.{NAMESPACE}.svc.cluster.local"
+                try:
+                    response = requests.get(f"http://{worker_name}:11626/info")
+                    logger.debug("Worker %s is running, response: %d", worker_name, response.status_code)
+                    worker_statuses.append({'worker_id': i, 'status': 'running', 'response': response.status_code})
+                except requests.exceptions.RequestException:
+                    logger.debug("Worker %s is down", worker_name)
+                    worker_statuses.append({'worker_id': i, 'status': 'down'})
+
+            # update the status
+            with status_lock:
+                status = {
+                    'jobs_remain': jobs_remain,
+                    'jobs_failed': jobs_failed,
+                    'workers': worker_statuses
+                }                
             logger.info("Status: %s", json.dumps(status))
         except Exception as e:
             logger.error("Error while getting status: %s", str(e))
+
         time.sleep(LOGGING_INTERVAL_SECONDS)
 
 def run(server_class=HTTPServer, handler_class=RequestHandler):
@@ -79,9 +91,7 @@ def run(server_class=HTTPServer, handler_class=RequestHandler):
     httpd.serve_forever()
 
 if __name__ == '__main__':
-    # Start the periodic logging in a separate thread
-    # for testing only, will disable this in production
-    log_thread = threading.Thread(target=log_status)
+    log_thread = threading.Thread(target=update_status)
     log_thread.daemon = True
     log_thread.start()    
 

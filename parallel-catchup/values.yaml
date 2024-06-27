@@ -1,15 +1,15 @@
 worker:
-  replicas: 128 # number of workers running in the StatefulSet
+  replicas: 5 # number of workers running in the StatefulSet
 
 monitor:
-  logging_interval_seconds: 30
+  logging_interval_seconds: 10
 
 job:
   args: |
     until redis-cli -h redis -p 6379 ping; do echo waiting for redis; sleep 2; done;
-    latestLedgerNum=52286600;
-    ledgersPerJob=16000;
-    overlapLedgers=320;
+    latestLedgerNum=100000;
+    ledgersPerJob=1600;
+    overlapLedgers=0;
     startingLedger=0;
     endRange=$latestLedgerNum;
     while [ "$endRange" -gt "$startingLedger" ]; do
