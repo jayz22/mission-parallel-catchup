@@ -33,7 +33,7 @@ logger = logging.getLogger()
 
 # In-memory status data structure and threading lock
 status = {
-    'jobs_remain': 0,
+    'jobs_remain': 1, # initialize the job remaining to non-zero to indicate something is running, just the status hasn't been updated yet
     'jobs_failed': 0,
     'workers': []
 }
