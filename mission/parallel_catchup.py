@@ -6,6 +6,8 @@ import time
 import requests
 import logging
 import sys
+import atexit
+import signal
 
 # Constants
 HELM_RELEASE_NAME = "parallel-catchup"
@@ -17,6 +19,19 @@ worker_replicas = 10
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler(sys.stdout)])
 logger = logging.getLogger()
+
+# function to cleanup the project on exit
+def on_exit():
+    run_command(["helm", "uninstall", HELM_RELEASE_NAME])
+
+atexit.register(on_exit)
+
+def signal_handler(signum, frame):
+    print(f"Received signal {signum}, exiting...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)  # Handle Ctrl-C
+signal.signal(signal.SIGTERM, signal_handler) # Handle termination signal
 
 def run_command(command):
     try:
@@ -61,7 +76,7 @@ def main():
 
             if queue_size == 0 and all_workers_down:
                 print("Queue is empty and all workers are down. Cleaning up resources...")
-                run_command(["helm", "uninstall", HELM_RELEASE_NAME])
+                on_exit()
                 break
 
         time.sleep(10)
