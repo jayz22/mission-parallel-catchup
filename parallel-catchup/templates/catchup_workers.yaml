@@ -40,99 +40,34 @@ spec:
             cpu: "2000m"
             memory: "6000Mi"
             ephemeral-storage: "40Gi"
-        command: ["sh", "-c"]
-        args:
-        - |
-          REDIS_HOST="redis"
-          REDIS_PORT=6379
-          SLEEP_INTERVAL=10
-          JOB_QUEUE="ranges"
-          FAILED_QUEUE="failed"
-          LOG_DIR="/data"
-
-          while true; do
-            # Fetch the next job key from the Redis queue
-            JOB_KEY=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT RPOP $JOB_QUEUE)
-            # JOB_KEY='current/max'
-
-            if [ -n "$JOB_KEY" ]; then
-              echo "Processing job: $JOB_KEY"
-              /usr/bin/stellar-core --conf /config/stellar-core.cfg new-db
-              /usr/bin/stellar-core --conf /config/stellar-core.cfg catchup $JOB_KEY --metric 'ledger.transaction.apply'
-              if [ $? -ne 0 ]; then
-                echo "Error processing job: $JOB_KEY"
-                redis-cli -h $REDIS_HOST -p $REDIS_PORT RPUSH $FAILED_QUEUE $JOB_KEY
-              else
-                echo "Successfully processed job: $JOB_KEY"
-              fi
-
-              # Parse and extract the metrics from the log file
-              LOG_FILE=$(ls -t $LOG_DIR/stellar-core-*.log | head -n 1)
-              if [ -z "$LOG_FILE" ]; then
-                echo "No log file found."
-                exit 1
-              fi
-
-              transaction_sum=$(tac "$LOG_FILE" | grep -m 1 -B 11 "metric 'ledger.transaction.apply':" | grep "sum =" | awk '{print $NF}')
-              echo "Log file: $LOG_FILE"
-              echo "ledger.transaction.apply sum: $transaction_sum"
-
-            else
-              echo "No more jobs in the queue. Sleeping for $SLEEP_INTERVAL seconds..."
-              sleep $SLEEP_INTERVAL
-            fi
-          done
+        command: ["sh", "/scripts/worker.sh"]
         ports:
         - containerPort: 11626
         volumeMounts:
-        # - name: data
-        #   mountPath: /data
         - name: config
           mountPath: /config
+        - name: script
+          mountPath: /scripts
       volumes:
-      # - name: data
-      #   emptyDir:
-      #     sizeLimit: "1Gi"
       - name: config
         configMap:
           name: stellar-core-config
+      - name: script
+        configMap:
+          name: worker-script          
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-script
+data:
+  worker.sh: |-
+    {{- (.Files.Get "files/worker.sh") | nindent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: stellar-core-config
 data:
-  stellar-core.cfg: |
-    HTTP_PORT=11626
-    PUBLIC_HTTP_PORT=true
-    NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
-    DATABASE="sqlite3:///data/stellar.db"
-    BUCKET_DIR_PATH="/data/buckets"
-    LOG_FILE_PATH="/data/stellar-core-{datetime:%Y-%m-%d_%H-%M-%S}.log"    
-    ENABLE_SOROBAN_DIAGNOSTIC_EVENTS=true
-    DEPRECATED_SQL_LEDGER_STATE=false
-
-    [[HOME_DOMAINS]]
-    HOME_DOMAIN="www.stellar.org"
-    QUALITY="HIGH"
-
-    [[VALIDATORS]]
-    NAME = "SDF 1"
-    PUBLIC_KEY = "GCGB2S2KGYARPVIA37HYZXVRM2YZUEXA6S33ZU5BUDC6THSB62LZSTYH"
-    ADDRESS = "core-live-a.stellar.org:11625"
-    HISTORY = "curl -sf http://history.stellar.org/prd/core-live/core_live_001/{0} -o {1}"
-    HOME_DOMAIN = "www.stellar.org"
-
-    [[VALIDATORS]]
-    NAME = "SDF 2"
-    PUBLIC_KEY = "GCM6QMP3DLRPTAZW2UZPCPX2LF3SXWXKPMP3GKFZBDSF3QZGV2G5QSTK"
-    ADDRESS = "core-live-b.stellar.org:11625"
-    HISTORY = "curl -sf http://history.stellar.org/prd/core-live/core_live_002/{0} -o {1}"
-    HOME_DOMAIN = "www.stellar.org"
-
-    [[VALIDATORS]]
-    NAME = "SDF 3"
-    PUBLIC_KEY = "GABMKJM6I25XI4K7U6XWMULOUQIQ27BCTMLS6BYYSOWKTBUXVRJSXHYQ"
-    ADDRESS = "core-live-c.stellar.org:11625"
-    HISTORY = "curl -sf http://history.stellar.org/prd/core-live/core_live_003/{0} -o {1}"
-    HOME_DOMAIN = "www.stellar.org"
+  stellar-core.cfg: |-
+    {{- (.Files.Get "files/stellar-core.cfg") | nindent 4 }}
