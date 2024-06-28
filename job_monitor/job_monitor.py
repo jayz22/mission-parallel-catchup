@@ -13,7 +13,9 @@ from datetime import datetime, UTC
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 JOB_QUEUE = os.getenv('JOB_QUEUE', 'ranges')
+SUCCESS_QUEUE = os.getenv('SUCCESS_QUEUE', 'succeeded')
 FAILED_QUEUE = os.getenv('FAILED_QUEUE', 'failed')
+PROGRESS_QUEUE = os.getenv('PROGRESS_QUEUE', 'in_progress')
 WORKER_PREFIX = os.getenv('WORKER_PREFIX', 'stellar-core')
 NAMESPACE = os.getenv('NAMESPACE', 'default')
 WORKER_COUNT = int(os.getenv('WORKER_COUNT', 3))
@@ -34,7 +36,9 @@ logger = logging.getLogger()
 # In-memory status data structure and threading lock
 status = {
     'jobs_remain': 1, # initialize the job remaining to non-zero to indicate something is running, just the status hasn't been updated yet
+    'jobs_succeeded': 0,
     'jobs_failed': 0,
+    'jobs_in_progress': 0,
     'workers': []
 }
 status_lock = threading.Lock()
@@ -57,7 +61,9 @@ def update_status():
         try:
             # Check the queue status
             jobs_remain = redis_client.llen(JOB_QUEUE)
+            jobs_succeeded = redis_client.llen(SUCCESS_QUEUE)
             jobs_failed = redis_client.llen(FAILED_QUEUE)
+            jobs_in_progress = redis_client.llen(PROGRESS_QUEUE)
 
             # Ping each worker status
             worker_statuses = []
@@ -75,9 +81,11 @@ def update_status():
             with status_lock:
                 status = {
                     'jobs_remain': jobs_remain,
+                    'jobs_succeeded': jobs_succeeded,
                     'jobs_failed': jobs_failed,
+                    'jobs_in_progress': jobs_in_progress,
                     'workers': worker_statuses
-                }                
+                }
             logger.info("Status: %s", json.dumps(status))
         except Exception as e:
             logger.error("Error while getting status: %s", str(e))

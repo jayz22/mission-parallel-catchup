@@ -51,13 +51,17 @@ spec:
         - containerPort: 8080
         env:
         - name: REDIS_HOST
-          value: "redis"
+          value: "{{ .Values.redis.host }}"
         - name: REDIS_PORT
-          value: "6379"
+          value: "{{ .Values.redis.port }}"
         - name: JOB_QUEUE
-          value: "ranges"
+          value: "{{ .Values.redis.job_queue }}"
+        - name: SUCCESS_QUEUE
+          value: "{{ .Values.redis.success_queue }}"
         - name: FAILED_QUEUE
-          value: "failed"
+          value: "{{ .Values.redis.failed_queue }}"
+        - name: PROGRESS_QUEUE
+          value: "{{ .Values.redis.progress_queue }}"
         - name: WORKER_PREFIX
           value: "stellar-core"
         - name: NAMESPACE

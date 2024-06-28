@@ -43,6 +43,19 @@ spec:
         command: ["sh", "/scripts/worker.sh"]
         ports:
         - containerPort: 11626
+        env:
+        - name: REDIS_HOST
+          value: "{{ .Values.redis.host }}"
+        - name: REDIS_PORT
+          value: "{{ .Values.redis.port }}"
+        - name: JOB_QUEUE
+          value: "{{ .Values.redis.job_queue }}"
+        - name: SUCCESS_QUEUE
+          value: "{{ .Values.redis.success_queue }}"
+        - name: FAILED_QUEUE
+          value: "{{ .Values.redis.failed_queue }}"
+        - name: PROGRESS_QUEUE
+          value: "{{ .Values.redis.progress_queue }}"
         volumeMounts:
         - name: config
           mountPath: /config

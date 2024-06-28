@@ -76,7 +76,6 @@ def main():
 
             if queue_size == 0 and all_workers_down:
                 print("Queue is empty and all workers are down. Cleaning up resources...")
-                on_exit()
                 break
 
         time.sleep(10)
