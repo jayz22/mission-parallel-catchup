@@ -11,4 +11,8 @@ spec:
         command: ["/bin/sh", "-c"]
         args: 
         - {{ .Values.job.args | nindent 10 }}
+      initContainers:
+      - name: wait-for-redis
+        image: redis:latest
+        command: ['sh', '-c', "until redis-cli -h {{ .Values.redis.host }} -p {{ .Values.redis.port }} ping; do echo waiting for redis; sleep 2; done;"]
       restartPolicy: OnFailure

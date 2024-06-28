@@ -14,7 +14,6 @@ monitor:
 
 job:
   args: |
-    until redis-cli -h redis -p 6379 ping; do echo waiting for redis; sleep 2; done;
     latestLedgerNum=100000;
     ledgersPerJob=1600;
     overlapLedgers=0;
