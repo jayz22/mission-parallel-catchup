@@ -55,28 +55,39 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+def retry_jobs_in_progress():
+    while redis_client.llen(PROGRESS_QUEUE) > 0:
+        job = redis_client.lmove(PROGRESS_QUEUE, JOB_QUEUE, "RIGHT", "LEFT")
+        logger.info("moved job %s from %s to %s", job, PROGRESS_QUEUE, JOB_QUEUE)
+
 def update_status():
     global status
     while True:
         try:
-            # Check the queue status
-            jobs_remain = redis_client.llen(JOB_QUEUE)
-            jobs_succeeded = redis_client.llen(SUCCESS_QUEUE)
-            jobs_failed = redis_client.llen(FAILED_QUEUE)
-            jobs_in_progress = redis_client.llen(PROGRESS_QUEUE)
-
             # Ping each worker status
             worker_statuses = []
+            all_workers_down = True
             for i in range(WORKER_COUNT):
                 worker_name = f"{WORKER_PREFIX}-{i}.{WORKER_PREFIX}.{NAMESPACE}.svc.cluster.local"
                 try:
                     response = requests.get(f"http://{worker_name}:11626/info")
                     logger.debug("Worker %s is running, response: %d", worker_name, response.status_code)
                     worker_statuses.append({'worker_id': i, 'status': 'running', 'response': response.status_code})
+                    all_workers_down = False
                 except requests.exceptions.RequestException:
                     logger.debug("Worker %s is down", worker_name)
                     worker_statuses.append({'worker_id': i, 'status': 'down'})
+            # Retry stuck jobs
+            if all_workers_down and redis_client.llen(PROGRESS_QUEUE) > 0:
+                logger.info("all workers are down but some jobs are stuck in progress")
+                logger.info("moving them from %s to %s queue", PROGRESS_QUEUE, JOB_QUEUE)
+                retry_jobs_in_progress()
 
+            # Check the queue status
+            jobs_remain = redis_client.llen(JOB_QUEUE)
+            jobs_succeeded = redis_client.llen(SUCCESS_QUEUE)
+            jobs_failed = redis_client.llen(FAILED_QUEUE)
+            jobs_in_progress = redis_client.llen(PROGRESS_QUEUE)
             # update the status
             with status_lock:
                 status = {

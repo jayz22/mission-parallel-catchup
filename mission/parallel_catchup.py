@@ -22,12 +22,13 @@ logger = logging.getLogger()
 
 # function to cleanup the project on exit
 def on_exit():
+    logger.info("Cleaning up resources...")
     run_command(["helm", "uninstall", HELM_RELEASE_NAME])
 
 atexit.register(on_exit)
 
 def signal_handler(signum, frame):
-    print(f"Received signal {signum}, exiting...")
+    logger.info(f"Received signal {signum}, exiting...")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)  # Handle Ctrl-C
@@ -58,11 +59,11 @@ def install_project():
 def get_job_monitor_status():
     try:
         response = requests.get(f"http://ssc-job-monitor.services.stellar-ops.com/status")
-        print(response.json())
+        logger.info(response.json())
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
-        print(f"Error querying job monitor: {e}")
+        logger.error(f"Error querying job monitor: {e}")
         return None
 
 def main():
@@ -71,11 +72,11 @@ def main():
     while True:
         status = get_job_monitor_status()
         if status:
-            queue_size = status.get('jobs_remain', 1)  # Default to 1 to keep running if not available
+            remain_size = status.get('jobs_remain', 1)  # Default to 1 to keep running if not available
+            progress_size = status.get('jobs_in_progress', 1)
             all_workers_down = all(worker['status'] == 'down' for worker in status.get('workers', []))
-
-            if queue_size == 0 and all_workers_down:
-                print("Queue is empty and all workers are down. Cleaning up resources...")
+            if all_workers_down and remain_size == 0 and progress_size == 0:
+                logger.info("No job left and all workers are down.")
                 break
 
         time.sleep(10)
