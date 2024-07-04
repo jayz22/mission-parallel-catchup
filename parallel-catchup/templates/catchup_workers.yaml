@@ -56,6 +56,12 @@ spec:
           value: "{{ .Values.redis.failed_queue }}"
         - name: PROGRESS_QUEUE
           value: "{{ .Values.redis.progress_queue }}"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: RELEASE_NAME
+          value: "{{ .Release.Name }}"
         volumeMounts:
         - name: config
           mountPath: /config
